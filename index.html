@@ -3152,7 +3152,95 @@ function drawHealthBar(ctx, x, y, current, max, width, customColor = null) {
   ctx.fillRect(x - width/2, y, width * pct, h);
 }
 
-// --- UI UPDATE ---
+// 1. Definir la función que faltaba para evitar el crash
+function renderSkinsMenu() {
+    const grid = document.getElementById('skins-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    const trophies = loggedPlayer ? loggedPlayer.trophies : 0;
+
+    ARENA_SKINS.forEach(skin => {
+        const isUnlocked = trophies >= skin.min;
+        const isSelected = state.selectedSkinId === skin.id || (state.selectedSkinId === null && skin.id === 0);
+        
+        const card = document.createElement('div');
+        card.className = `skin-card ${isUnlocked ? '' : 'locked'} ${isSelected ? 'selected' : ''}`;
+        card.onclick = () => {
+            if (isUnlocked) {
+                state.selectedSkinId = skin.id;
+                renderSkinsMenu();
+            }
+        };
+
+        card.innerHTML = `
+            <div class="equip-badge">SELECTED</div>
+            <div class="skin-preview" style="background: ${skin.colors.grass}">
+                <span style="font-size: 40px">${skin.icon}</span>
+            </div>
+            <div class="skin-info">
+                <div class="skin-name">${skin.name}</div>
+                <div class="skin-req">${isUnlocked ? 'UNLOCKED' : '🏆 ' + skin.min}</div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// 2. Modificar openSkinsMenu para que funcione
+window.openSkinsMenu = () => {
+    document.getElementById('skins-overlay').style.display = 'flex';
+    renderSkinsMenu();
+};
+
+window.closeSkinsMenu = () => {
+    document.getElementById('skins-overlay').style.display = 'none';
+};
+
+// 3. Corregir resetGame para asegurar que el loader se quite siempre
+window.resetGame = () => {
+    // Usamos un try-catch interno por si falla alguna función de renderizado
+    window.showLoading(() => {
+        try {
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('main-menu').style.opacity = '1'; 
+            document.getElementById('game-screen').style.display = 'none'; 
+            document.getElementById('bottom-nav').style.display = 'flex'; 
+            document.getElementById('auth-ui').style.display = 'block'; 
+            document.getElementById('social-ui').style.display = 'flex'; 
+            document.getElementById('donate-btn').style.display = 'flex';
+            
+            state.screen = 'menu'; 
+            document.getElementById('message').style.display = 'none'; 
+            document.getElementById('play-again-btn').style.display = 'none';
+            
+            // Limpieza de estado de juego
+            state.units = []; 
+            state.projectiles = []; 
+            state.particles = []; 
+            state.towers = []; 
+            state.playerElixir = 5; 
+            state.selectedCard = null; 
+            state.gameOver = false; 
+            state.activeChampionId = null; 
+            state.matchTime = 0;
+            state.isOvertime = false;
+            
+            document.getElementById('ability-btn').style.display = 'none';
+            
+            // Renderizados de menú
+            renderDeckBuilder(); 
+            updateHandUI(); 
+            fetchLeaderboard(); 
+            renderSkinsMenu(); // Ahora sí existe
+        } catch (e) {
+            console.error("Error en resetGame:", e);
+        }
+    });
+}
+window.closeTrophyRoad = () => {
+    document.getElementById('trophy-road-overlay').style.display = 'none';
+};
 function updateUI() {
   const fill = document.getElementById('elixir-fill'); const text = document.getElementById('elixir-text');
   const pct = (state.playerElixir /10) * 100; fill.style.width = `${pct}%`; text.textContent = `${Math.floor(state.playerElixir)} / 10`;
@@ -3238,6 +3326,5 @@ init();
 </script>
 </body>
 </html>
-
 
 
